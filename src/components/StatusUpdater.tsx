@@ -1,46 +1,51 @@
 'use client';
 import { createBrowserClient } from '@supabase/ssr';
-import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 
+// This component takes the Invoice ID and Status as inputs
 export default function StatusUpdater({ id, currentStatus }: { id: string, currentStatus: string }) {
-    const router = useRouter();
     const [loading, setLoading] = useState(false);
+    const router = useRouter();
 
     const supabase = createBrowserClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     );
 
-    const updateStatus = async (newStatus: string) => {
+    const handleUpdate = async () => {
         setLoading(true);
-        // 1. Update DB
-        await supabase.from('invoices').update({ status: newStatus }).eq('id', id);
-        // 2. Refresh the current page data instantly
+        // Update status in Supabase
+        await supabase.from('invoices').update({ status: 'Paid' }).eq('id', id);
+        // Refresh the page to show new status
         router.refresh();
         setLoading(false);
     };
 
+    // 1. IF PAID: Show a Green Badge (No click needed)
     if (currentStatus === 'Paid') {
         return (
-            <button
-                onClick={() => updateStatus('Draft')}
-                disabled={loading}
-                className="px-4 py-2 border border-green-600 bg-green-50 text-green-700 font-mono text-xs uppercase font-bold rounded-sm flex items-center gap-2 hover:bg-green-100 transition-colors"
-            >
-                <span className="w-2 h-2 rounded-full bg-green-600 animate-pulse"></span>
-                PAID
-            </button>
+            <span className="inline-flex items-center px-3 py-2 rounded-lg text-xs font-bold bg-green-500/10 text-green-500 border border-green-500/20 uppercase tracking-wider shadow-[0_0_10px_rgba(34,197,94,0.2)]">
+                <span className="material-symbols-outlined text-[16px] mr-2">check_circle</span>
+                Payée
+            </span>
         );
     }
 
+    // 2. IF PENDING: Show the "Mark as Paid" Button (Gold Styling)
     return (
         <button
-            onClick={() => updateStatus('Paid')}
+            onClick={handleUpdate}
             disabled={loading}
-            className="px-4 py-2 border border-dashed border-gray-400 text-gray-500 font-mono text-xs uppercase hover:border-green-600 hover:text-green-600 hover:bg-green-50 transition-colors"
+            className="group relative inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold text-primary border border-primary/30 hover:bg-primary hover:text-black transition-all uppercase tracking-wider"
         >
-            {loading ? "SAVING..." : "MARK AS PAID"}
+            <span className="material-symbols-outlined text-[18px]">
+                {loading ? 'sync' : 'credit_score'}
+            </span>
+            {loading ? 'Traitement...' : 'Marquer comme Payée'}
+
+            {/* Hover Glow Effect */}
+            <div className="absolute inset-0 rounded-lg bg-primary/20 blur-md opacity-0 group-hover:opacity-100 transition-opacity"></div>
         </button>
     );
 }

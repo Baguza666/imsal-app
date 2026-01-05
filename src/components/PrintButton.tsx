@@ -1,11 +1,13 @@
 'use client';
+
 export default function PrintButton() {
     return (
         <button
             onClick={() => window.print()}
-            className="px-6 py-2 border border-brand-gold text-brand-gold font-mono text-xs uppercase hover:bg-brand-gold hover:text-surface-app transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold text-text-secondary border border-border-dark hover:text-white hover:border-white hover:bg-white/5 transition-all uppercase tracking-wider"
         >
-            Download / Print
+            <span className="material-symbols-outlined text-[18px]">print</span>
+            Imprimer / PDF
         </button>
     );
 }

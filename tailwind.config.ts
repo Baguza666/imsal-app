@@ -1,6 +1,7 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
+    darkMode: "class",
     content: [
         "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
         "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
@@ -8,34 +9,23 @@ const config: Config = {
     ],
     theme: {
         extend: {
-            fontFamily: {
-                sans: ['var(--font-inter)'],
-                mono: ['var(--font-mono)'],
-            },
             colors: {
-                // THE NEW IMSAL PALETTE
-                surface: {
-                    app: '#000000',      // Deepest Black (Main BG)
-                    card: '#121212',     // Dark Gray (Cards)
-                    hover: '#1E1E1E',    // Slightly lighter (Hover state)
-                    stroke: '#27272A',   // Border lines (Zinc-800)
-                    input: '#09090b',    // Very dark input background
-                },
-                text: {
-                    main: '#FFFFFF',     // Pure White (Headings)
-                    body: '#A1A1AA',     // Light Gray (Paragraphs)
-                    muted: '#52525B',    // Darker Gray (Subtitles)
-                },
-                brand: {
-                    gold: '#F59E0B',     // The "IMSAL Gold" (Amber-500)
-                    goldHover: '#D97706',// Darker Gold for hovers
-                    success: '#10B981',  // Green (Paid)
-                    danger: '#EF4444',   // Red (Overdue)
-                    pending: '#F59E0B',  // Orange (Pending)
-                },
+                "primary": "#f4b943",       // Your Gold
+                "primary-dark": "#dca22e",  // Darker Gold
+                "surface-dark": "#121212",  // Card BG
+                "background-dark": "#0a0a0a", // App BG
+                "border-dark": "#262626",   // Borders
+                "text-secondary": "#A0A0A0", // Muted Text
+            },
+            fontFamily: {
+                sans: ['var(--font-inter)', 'sans-serif'], // Use our Inter font
+            },
+            backgroundImage: {
+                'gold-gradient': 'linear-gradient(135deg, #f4b943 0%, #dca22e 100%)',
+                'active-nav-gradient': 'linear-gradient(90deg, rgba(244, 185, 67, 0.15) 0%, rgba(244, 185, 67, 0.0) 100%)',
             },
             boxShadow: {
-                'glow': '0 0 20px -5px rgba(245, 158, 11, 0.15)', // Subtle gold glow
+                'glow': '0 0 20px rgba(244, 185, 67, 0.2)',
             }
         },
     },

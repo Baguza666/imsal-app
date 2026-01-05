@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
-// 1. Load the fonts
+// 1. Load Fonts
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-inter",
@@ -16,8 +16,8 @@ const mono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "IMSAL | Financial Operating System",
-  description: "The heartbeat of your business.",
+  title: "IMSAL PRO | Financial Operating System",
+  description: "High-performance financial management for contractors.",
 };
 
 export default function RootLayout({
@@ -26,12 +26,19 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      {/* 2. Apply fonts to the HTML tag */}
-      {/* ADD suppressHydrationWarning={true} TO FIX EXTENSION ERRORS */}
+    /* Force Dark Mode class here */
+    <html lang="fr" className="dark">
+      <head>
+        {/* Load Material Symbols Icons from Google */}
+        <link
+          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+          rel="stylesheet"
+        />
+      </head>
       <body
+        /* suppressHydrationWarning fixes the "Dark Reader" extension errors */
         suppressHydrationWarning={true}
-        className={`${inter.variable} ${mono.variable} antialiased bg-zinc-50 text-zinc-900`}
+        className={`${inter.variable} ${mono.variable} antialiased bg-background-dark text-white font-sans`}
       >
         {children}
       </body>
