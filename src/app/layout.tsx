@@ -1,32 +1,38 @@
 import type { Metadata } from "next";
-import { Manrope, JetBrains_Mono } from "next/font/google";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
-// 1. Load Manrope (Brand Font)
-const manrope = Manrope({
+// 1. Load the fonts
+const inter = Inter({
   subsets: ["latin"],
-  variable: "--font-manrope"
+  variable: "--font-inter",
+  display: 'swap',
 });
 
-// 2. Load Mono (Financial Data Font)
-const jetbrainsMono = JetBrains_Mono({
+const mono = JetBrains_Mono({
   subsets: ["latin"],
-  variable: "--font-geist-mono"
+  variable: "--font-mono",
+  display: 'swap',
 });
 
 export const metadata: Metadata = {
-  title: "IMSAL Services | Command Center",
-  description: "Silence is Luxury.",
+  title: "IMSAL | Financial Operating System",
+  description: "The heartbeat of your business.",
 };
 
 export default function RootLayout({
   children,
-}: {
+}: Readonly<{
   children: React.ReactNode;
-}) {
+}>) {
   return (
     <html lang="en">
-      <body className={`${manrope.variable} ${jetbrainsMono.variable} bg-surface-app text-text-body antialiased font-sans`}>
+      {/* 2. Apply fonts to the HTML tag */}
+      {/* ADD suppressHydrationWarning={true} TO FIX EXTENSION ERRORS */}
+      <body
+        suppressHydrationWarning={true}
+        className={`${inter.variable} ${mono.variable} antialiased bg-zinc-50 text-zinc-900`}
+      >
         {children}
       </body>
     </html>

@@ -8,35 +8,33 @@ const config: Config = {
     ],
     theme: {
         extend: {
+            fontFamily: {
+                sans: ['var(--font-inter)'],
+                mono: ['var(--font-mono)'],
+            },
             colors: {
-                // AUREUS SYSTEM
+                // High-end Grayscale (Zinc)
                 surface: {
-                    app: "#09090B", // OLED Saver
-                    card: "#121214", // Content containers
-                    input: "#18181B", // Form fields
-                },
-                border: {
-                    subtle: "#27272A", // Card dividers
-                    focus: "#E5C07B", // Active input states
+                    app: '#F4F4F5',      // zinc-100 (Background)
+                    card: '#FFFFFF',     // White (Cards)
+                    hover: '#FAFAFA',    // Very light gray (Hover)
+                    stroke: '#E4E4E7',   // zinc-200 (Borders)
                 },
                 text: {
-                    hero: "#FAFAFA", // Primary headings
-                    body: "#D4D4D8", // Standard paragraphs
-                    muted: "#71717A", // Metadata
+                    main: '#18181B',     // zinc-900 (Headings)
+                    body: '#52525B',     // zinc-600 (Paragraphs)
+                    muted: '#A1A1AA',    // zinc-400 (Subtitles)
                 },
                 brand: {
-                    gold: "#E5C07B", // "Champagne" (Money In)
-                    action: "#FAFAFA", // Primary Buttons
+                    accent: '#18181B',   // Black (Primary Actions)
+                    gold: '#D97706',     // Amber-600 (Money/Highlights)
+                    success: '#10B981',  // Emerald-500 (Paid Status)
                 },
             },
-            fontFamily: {
-                // BRAND TYPOGRAPHY (Manrope)
-                sans: ["var(--font-manrope)", "sans-serif"],
-                heading: ["var(--font-manrope)", "sans-serif"],
-
-                // FINANCIAL TYPOGRAPHY (Geist/Mono for data)
-                mono: ["var(--font-geist-mono)", "monospace"],
-            },
+            boxShadow: {
+                'subtle': '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+                'card': '0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.02)',
+            }
         },
     },
     plugins: [],
