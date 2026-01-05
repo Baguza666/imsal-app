@@ -2,7 +2,7 @@ import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import Sidebar from '@/components/Sidebar'; // Import the new Sidebar
+import Sidebar from '@/components/Sidebar';
 
 export default async function Dashboard() {
   const cookieStore = await cookies();
@@ -10,33 +10,21 @@ export default async function Dashboard() {
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
-        },
-      },
-    }
+    { cookies: { get: (name) => cookieStore.get(name)?.value } }
   );
 
-  // 1. Security Check
   const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/");
 
-  if (!user) {
-    redirect("/");
-  }
-
-  // 2. Fetch Workspace
+  // Fetch Workspace
   const { data: workspace } = await supabase
-    .from('workspaces')
-    .select('id')
-    .eq('owner_id', user.id)
-    .single();
+    .from('workspaces').select('id').eq('owner_id', user.id).single();
 
   let invoices: any[] = [];
   let totalRevenue = 0;
+  let paidCount = 0;
+  let pendingAmount = 0;
 
-  // 3. Fetch Real Invoices
   if (workspace) {
     const { data: realInvoices } = await supabase
       .from('invoices')
@@ -46,123 +34,122 @@ export default async function Dashboard() {
 
     if (realInvoices) {
       invoices = realInvoices;
-      // Calculate Total Cashflow (Paid only)
-      totalRevenue = realInvoices
-        .filter(inv => inv.status === 'Paid')
-        .reduce((sum, inv) => sum + Number(inv.total_amount), 0);
+      totalRevenue = realInvoices.filter(inv => inv.status === 'Paid').reduce((sum, inv) => sum + Number(inv.total_amount), 0);
+      pendingAmount = realInvoices.filter(inv => inv.status !== 'Paid').reduce((sum, inv) => sum + Number(inv.total_amount), 0);
+      paidCount = realInvoices.filter(inv => inv.status === 'Paid').length;
     }
   }
 
-  // Format Currency Helper
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-MA', { style: 'currency', currency: 'MAD' }).format(amount);
-  };
+  const formatMoney = (amount: number) =>
+    new Intl.NumberFormat('fr-MA', { style: 'currency', currency: 'MAD' }).format(amount);
+
+  const formatDate = (dateStr: string) =>
+    new Date(dateStr).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
 
   return (
-    <div className="min-h-screen bg-surface-app">
-
-      {/* 1. THE SIDEBAR (Fixed Left) */}
+    <div className="min-h-screen bg-surface-app text-text-main font-sans selection:bg-brand-gold selection:text-black">
       <Sidebar />
 
-      {/* 2. MAIN CONTENT (Pushed Right) */}
-      <main className="ml-64 p-12 text-text-body font-sans">
+      <main className="ml-64 p-8">
 
-        {/* PAGE TITLE */}
-        <header className="mb-12 flex justify-between items-end border-b border-surface-stroke pb-6">
-          <div>
-            <h1 className="font-bold text-3xl text-text-main tracking-tight">
-              Cockpit
-            </h1>
-            <p className="text-text-muted text-sm mt-1">
-              Overview of your financial performance.
-            </p>
+        {/* HEADER */}
+        <header className="flex justify-between items-center mb-10 mt-4">
+          <h2 className="text-xl font-bold tracking-widest uppercase text-white">Vue d'ensemble</h2>
+
+          <div className="flex gap-4">
+            <button className="w-10 h-10 rounded-full border border-surface-stroke flex items-center justify-center text-text-muted hover:text-white hover:border-white transition-colors">
+              🔔
+            </button>
+            <Link
+              href="/invoices/new"
+              className="px-6 py-2 bg-brand-gold text-black font-bold text-sm rounded-full hover:bg-brand-goldHover transition-colors flex items-center gap-2"
+            >
+              <span>+</span> Nouvelle Facture
+            </Link>
           </div>
-          <Link
-            href="/invoices/new"
-            className="bg-brand-accent text-white px-4 py-2 text-sm font-medium rounded-md hover:bg-zinc-800 transition-colors shadow-subtle"
-          >
-            + New Invoice
-          </Link>
         </header>
 
-        {/* BENTO GRID */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* METRICS ROW */}
+        <div className="grid grid-cols-3 gap-6 mb-8">
 
-          {/* CARD 1: Total Revenue */}
-          <div className="md:col-span-2 bg-surface-card border border-surface-stroke p-8 rounded-lg shadow-subtle relative overflow-hidden">
-            <span className="text-text-muted font-mono text-xs uppercase tracking-widest">
-              Total Revenue (Paid)
-            </span>
-            <div className="mt-4 font-mono text-5xl text-text-main font-bold tracking-tighter">
-              {formatCurrency(totalRevenue)}
+          {/* MAIN CARD: TOTAL REVENUE */}
+          <div className="col-span-2 bg-surface-card border border-surface-stroke p-8 rounded-xl relative overflow-hidden group">
+            <div className="absolute top-0 right-0 p-32 bg-brand-gold opacity-[0.03] rounded-full blur-3xl group-hover:opacity-[0.05] transition-opacity"></div>
+
+            <span className="text-xs font-bold text-text-muted uppercase tracking-widest">Total Revenu</span>
+            <div className="mt-4 text-5xl font-bold text-white tracking-tight">
+              {formatMoney(totalRevenue)}
             </div>
-            <div className="mt-6 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-brand-success animate-pulse"></span>
-              <span className="text-xs text-brand-success font-medium uppercase tracking-wide">
-                Live System Data
-              </span>
+            <div className="mt-4 flex items-center gap-2 text-sm">
+              <span className="text-brand-success font-bold">↗ +12.5%</span>
+              <span className="text-text-muted">vs mois dernier</span>
             </div>
           </div>
 
-          {/* CARD 2: System Status */}
-          <div className="bg-surface-card border border-surface-stroke p-8 rounded-lg shadow-subtle flex flex-col justify-center">
-            <span className="text-text-muted font-mono text-xs uppercase tracking-widest mb-4">
-              System Status
-            </span>
-            <div className="flex items-center gap-3 text-sm text-text-body">
-              <div className="w-full bg-zinc-100 h-2 rounded-full overflow-hidden">
-                <div className="bg-brand-gold h-full w-full" style={{ width: '100%' }}></div>
-              </div>
-              <span className="font-mono text-xs">100%</span>
+          {/* SECONDARY CARD: PENDING */}
+          <div className="bg-surface-card border border-surface-stroke p-8 rounded-xl flex flex-col justify-between">
+            <div className="flex justify-between items-start">
+              <span className="text-xs font-bold text-text-muted uppercase tracking-widest">En Attente</span>
+              <div className="w-8 h-8 rounded-full bg-surface-hover flex items-center justify-center text-brand-gold">🕒</div>
             </div>
-            <p className="mt-4 text-xs text-text-muted italic">
-              "All systems operational."
-            </p>
+            <div>
+              <div className="text-4xl font-bold text-white">{invoices.length - paidCount}</div>
+              <div className="text-sm text-text-muted mt-2">{formatMoney(pendingAmount)} à encaisser</div>
+            </div>
+          </div>
+        </div>
+
+        {/* BOTTOM SECTION: RECENT ACTIVITY */}
+        <div className="grid grid-cols-3 gap-6">
+
+          {/* CASHFLOW CARD */}
+          <div className="bg-surface-card border border-surface-stroke p-8 rounded-xl">
+            <div className="flex justify-between items-center mb-6">
+              <span className="text-xs font-bold text-text-muted uppercase tracking-widest">Trésorerie</span>
+              <div className="p-2 bg-blue-500/10 text-blue-400 rounded-lg">🏦</div>
+            </div>
+            <div className="text-3xl font-bold text-white">
+              {formatMoney(totalRevenue * 0.8)}
+            </div>
+            <p className="text-xs text-text-muted mt-2">Sécurisé (Est.)</p>
           </div>
 
-          {/* CARD 3: Recent Invoices List */}
-          <div className="md:col-span-3 bg-surface-card border border-surface-stroke rounded-lg shadow-subtle overflow-hidden">
-            <div className="p-6 border-b border-surface-stroke bg-surface-hover/50">
-              <h3 className="text-sm font-medium text-text-main">Recent Invoices</h3>
+          {/* RECENT INVOICES LIST */}
+          <div className="col-span-2 bg-surface-card border border-surface-stroke p-8 rounded-xl">
+            <div className="mb-6 flex justify-between items-end">
+              <span className="text-xs font-bold text-text-muted uppercase tracking-widest">Derniers Mouvements</span>
             </div>
 
-            <div className="divide-y divide-surface-stroke">
-              {invoices.length === 0 ? (
-                <div className="text-center text-text-muted font-mono text-sm py-12">
-                  -- NO DATA --
-                </div>
-              ) : (
-                // Map through Invoices
-                invoices.map((inv) => (
-                  <Link key={inv.id} href={`/invoices/${inv.id}`} className="block hover:bg-surface-hover transition-colors group">
-                    <div className="flex justify-between items-center p-6">
-                      <div className="flex flex-col gap-1">
-                        <span className="text-text-main font-medium text-sm group-hover:text-brand-accent transition-colors">
-                          {inv.client?.name || "Unknown Client"}
-                        </span>
-                        <span className="text-text-muted font-mono text-xs uppercase">
-                          {inv.invoice_number}
-                        </span>
-                      </div>
-                      <div className="text-right flex flex-col items-end gap-1">
-                        <span className="text-text-main font-mono text-sm font-bold">
-                          {formatCurrency(inv.total_amount)}
-                        </span>
-                        <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${inv.status === 'Paid'
-                            ? 'bg-emerald-100 text-emerald-700'
-                            : 'bg-zinc-100 text-zinc-500'
-                          }`}>
-                          {inv.status}
-                        </span>
-                      </div>
-                    </div>
-                  </Link>
-                ))
+            <div className="space-y-4">
+              {invoices.slice(0, 5).map((inv) => (
+                <Link key={inv.id} href={`/invoices/${inv.id}`} className="flex items-center justify-between p-4 bg-surface-app/50 rounded-lg hover:bg-surface-hover transition-colors border border-transparent hover:border-surface-stroke group">
+                  <div className="w-1/3">
+                    <div className="text-sm font-bold text-white group-hover:text-brand-gold transition-colors">{inv.client?.name}</div>
+                    <div className="text-xs text-text-muted">{inv.invoice_number}</div>
+                  </div>
+                  <div className="text-xs text-text-muted w-1/4">
+                    {formatDate(inv.created_at)}
+                  </div>
+                  <div className="text-sm font-bold text-white w-1/4 text-right">
+                    {formatMoney(inv.total_amount)}
+                  </div>
+                  <div className="w-1/6 flex justify-end">
+                    <span className={`text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider ${inv.status === 'Paid'
+                        ? 'bg-green-500/10 text-green-500 border border-green-500/20'
+                        : 'bg-brand-gold/10 text-brand-gold border border-brand-gold/20'
+                      }`}>
+                      {inv.status === 'Draft' ? 'Brouillon' : inv.status === 'Paid' ? 'Payé' : 'En cours'}
+                    </span>
+                  </div>
+                </Link>
+              ))}
+              {invoices.length === 0 && (
+                <div className="text-center py-10 text-text-muted text-sm">Aucune facture récente.</div>
               )}
             </div>
           </div>
-
         </div>
+
       </main>
     </div>
   );

@@ -13,27 +13,29 @@ const config: Config = {
                 mono: ['var(--font-mono)'],
             },
             colors: {
-                // High-end Grayscale (Zinc)
+                // THE NEW IMSAL PALETTE
                 surface: {
-                    app: '#F4F4F5',      // zinc-100 (Background)
-                    card: '#FFFFFF',     // White (Cards)
-                    hover: '#FAFAFA',    // Very light gray (Hover)
-                    stroke: '#E4E4E7',   // zinc-200 (Borders)
+                    app: '#000000',      // Deepest Black (Main BG)
+                    card: '#121212',     // Dark Gray (Cards)
+                    hover: '#1E1E1E',    // Slightly lighter (Hover state)
+                    stroke: '#27272A',   // Border lines (Zinc-800)
+                    input: '#09090b',    // Very dark input background
                 },
                 text: {
-                    main: '#18181B',     // zinc-900 (Headings)
-                    body: '#52525B',     // zinc-600 (Paragraphs)
-                    muted: '#A1A1AA',    // zinc-400 (Subtitles)
+                    main: '#FFFFFF',     // Pure White (Headings)
+                    body: '#A1A1AA',     // Light Gray (Paragraphs)
+                    muted: '#52525B',    // Darker Gray (Subtitles)
                 },
                 brand: {
-                    accent: '#18181B',   // Black (Primary Actions)
-                    gold: '#D97706',     // Amber-600 (Money/Highlights)
-                    success: '#10B981',  // Emerald-500 (Paid Status)
+                    gold: '#F59E0B',     // The "IMSAL Gold" (Amber-500)
+                    goldHover: '#D97706',// Darker Gold for hovers
+                    success: '#10B981',  // Green (Paid)
+                    danger: '#EF4444',   // Red (Overdue)
+                    pending: '#F59E0B',  // Orange (Pending)
                 },
             },
             boxShadow: {
-                'subtle': '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
-                'card': '0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.02)',
+                'glow': '0 0 20px -5px rgba(245, 158, 11, 0.15)', // Subtle gold glow
             }
         },
     },
