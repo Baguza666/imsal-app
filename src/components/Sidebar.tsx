@@ -23,7 +23,14 @@ export default function Sidebar() {
                 <NavItem href="/invoices/new" label="New Invoice" active={isActive('/invoices/new')} />
                 <div className="pt-8">
                     <p className="text-xs font-mono text-text-muted uppercase tracking-widest mb-4 pl-3">Settings</p>
-                    <NavItem href="#" label="Workspace" active={false} />
+
+                    {/* 👇 THIS IS THE FIX: Points to /settings */}
+                    <NavItem
+                        href="/settings"
+                        label="Workspace Settings"
+                        active={isActive('/settings')}
+                    />
+
                     <NavItem href="#" label="Integration" active={false} />
                 </div>
             </nav>
