@@ -3,7 +3,7 @@ import { createBrowserClient } from '@supabase/ssr';
 import { useEffect, useState } from "react";
 import Sidebar from '@/components/Sidebar';
 
-// 1. DEFINE THE SHAPE OF DATA (The Type Definition)
+// 1. TYPE DEFINITION
 interface WorkspaceData {
     id: string;
     name: string;
@@ -18,7 +18,6 @@ export default function Settings() {
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState("");
 
-    // 2. USE THE TYPE IN STATE
     const [workspace, setWorkspace] = useState<WorkspaceData>({
         id: "",
         name: "",
@@ -45,7 +44,6 @@ export default function Settings() {
                 .single();
 
             if (ws) {
-                // Ensure we handle null values from DB by falling back to empty strings
                 setWorkspace({
                     id: ws.id,
                     name: ws.name || "",
@@ -55,6 +53,7 @@ export default function Settings() {
                     tax_id: ws.tax_id || ""
                 });
             }
+            // If no workspace found, we leave the ID as "" so we know to create one later.
             setLoading(false);
         };
         fetchData();
@@ -65,16 +64,50 @@ export default function Settings() {
         setSaving(true);
         setMessage("");
 
-        const { error } = await supabase
-            .from('workspaces')
-            .update({
-                name: workspace.name,
-                address: workspace.address,
-                city: workspace.city,
-                country: workspace.country,
-                tax_id: workspace.tax_id
-            })
-            .eq('id', workspace.id);
+        // Get user again to ensure security
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+            setMessage("Error: Not authenticated");
+            setSaving(false);
+            return;
+        }
+
+        let error;
+
+        // 🛑 LOGIC FIX: Check if we are Creating or Updating
+        if (!workspace.id) {
+            // SCENARIO A: CREATE NEW (The "Fix")
+            const { data: newWs, error: createError } = await supabase
+                .from('workspaces')
+                .insert([{
+                    owner_id: user.id,
+                    name: workspace.name,
+                    address: workspace.address,
+                    city: workspace.city,
+                    country: workspace.country,
+                    tax_id: workspace.tax_id
+                }])
+                .select()
+                .single();
+
+            if (newWs) {
+                setWorkspace(prev => ({ ...prev, id: newWs.id })); // Save the new ID
+            }
+            error = createError;
+        } else {
+            // SCENARIO B: UPDATE EXISTING
+            const { error: updateError } = await supabase
+                .from('workspaces')
+                .update({
+                    name: workspace.name,
+                    address: workspace.address,
+                    city: workspace.city,
+                    country: workspace.country,
+                    tax_id: workspace.tax_id
+                })
+                .eq('id', workspace.id);
+            error = updateError;
+        }
 
         if (error) {
             setMessage("Error: " + error.message);
@@ -84,7 +117,6 @@ export default function Settings() {
         setSaving(false);
     };
 
-    // Helper to typed change events
     const handleChange = (field: keyof WorkspaceData, value: string) => {
         setWorkspace(prev => ({ ...prev, [field]: value }));
     };
@@ -108,7 +140,6 @@ export default function Settings() {
                             <input
                                 type="text"
                                 value={workspace.name}
-                                // Explicitly typed event handler
                                 onChange={(e) => handleChange('name', e.target.value)}
                                 className="w-full bg-zinc-50 border border-surface-stroke p-3 rounded-md text-text-main focus:ring-1 focus:ring-brand-accent focus:outline-none"
                             />
