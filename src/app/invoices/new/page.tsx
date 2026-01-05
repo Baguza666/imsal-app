@@ -52,7 +52,7 @@ export default function NewInvoice() {
                 workspace = newWorkspace;
             }
 
-            // FIX: This line stops TypeScript from panicking about "possibly null"
+            // SAFETY CHECK 1: Ensure workspace exists
             if (!workspace) throw new Error("Critical: Could not find or create workspace.");
 
             // 3. GET OR CREATE CLIENT
@@ -60,7 +60,7 @@ export default function NewInvoice() {
             let { data: client } = await supabase
                 .from('clients')
                 .select('id')
-                .eq('workspace_id', workspace.id) // TS is now happy here
+                .eq('workspace_id', workspace.id)
                 .eq('name', clientName)
                 .single();
 
@@ -78,6 +78,9 @@ export default function NewInvoice() {
                 if (clError) throw clError;
                 client = newClient;
             }
+
+            // SAFETY CHECK 2: Ensure client exists (This fixes your error!)
+            if (!client) throw new Error("Critical: Could not find or create client.");
 
             // 4. CREATE INVOICE
             setStatus("Issuing Invoice...");
