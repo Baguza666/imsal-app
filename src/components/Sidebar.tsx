@@ -24,7 +24,7 @@ export default function Sidebar() {
                 <div className="pt-8">
                     <p className="text-xs font-mono text-text-muted uppercase tracking-widest mb-4 pl-3">Settings</p>
 
-                    {/* 👇 THIS IS THE FIX: Points to /settings */}
+                    {/* Linked Settings Page */}
                     <NavItem
                         href="/settings"
                         label="Workspace Settings"
@@ -55,8 +55,8 @@ function NavItem({ href, label, active }: { href: string, label: string, active:
         <Link
             href={href}
             className={`block px-3 py-2 rounded-md text-sm font-medium transition-colors ${active
-                ? 'bg-zinc-100 text-brand-accent'
-                : 'text-text-body hover:bg-zinc-50 hover:text-brand-accent'
+                    ? 'bg-zinc-100 text-brand-accent'
+                    : 'text-text-body hover:bg-zinc-50 hover:text-brand-accent'
                 }`}
         >
             {label}

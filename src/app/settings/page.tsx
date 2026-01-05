@@ -3,13 +3,23 @@ import { createBrowserClient } from '@supabase/ssr';
 import { useEffect, useState } from "react";
 import Sidebar from '@/components/Sidebar';
 
+// 1. DEFINE THE SHAPE OF DATA (The Type Definition)
+interface WorkspaceData {
+    id: string;
+    name: string;
+    address: string;
+    city: string;
+    country: string;
+    tax_id: string;
+}
+
 export default function Settings() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState("");
 
-    // Form State
-    const [workspace, setWorkspace] = useState({
+    // 2. USE THE TYPE IN STATE
+    const [workspace, setWorkspace] = useState<WorkspaceData>({
         id: "",
         name: "",
         address: "",
@@ -23,7 +33,6 @@ export default function Settings() {
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     );
 
-    // 1. Fetch Current Data on Load
     useEffect(() => {
         const fetchData = async () => {
             const { data: { user } } = await supabase.auth.getUser();
@@ -36,6 +45,7 @@ export default function Settings() {
                 .single();
 
             if (ws) {
+                // Ensure we handle null values from DB by falling back to empty strings
                 setWorkspace({
                     id: ws.id,
                     name: ws.name || "",
@@ -50,7 +60,6 @@ export default function Settings() {
         fetchData();
     }, []);
 
-    // 2. Handle Save
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
         setSaving(true);
@@ -75,6 +84,11 @@ export default function Settings() {
         setSaving(false);
     };
 
+    // Helper to typed change events
+    const handleChange = (field: keyof WorkspaceData, value: string) => {
+        setWorkspace(prev => ({ ...prev, [field]: value }));
+    };
+
     if (loading) return <div className="min-h-screen bg-surface-app flex items-center justify-center text-text-muted">Loading Configuration...</div>;
 
     return (
@@ -94,7 +108,8 @@ export default function Settings() {
                             <input
                                 type="text"
                                 value={workspace.name}
-                                onChange={(e) => setWorkspace({ ...workspace, name: e.target.value })}
+                                // Explicitly typed event handler
+                                onChange={(e) => handleChange('name', e.target.value)}
                                 className="w-full bg-zinc-50 border border-surface-stroke p-3 rounded-md text-text-main focus:ring-1 focus:ring-brand-accent focus:outline-none"
                             />
                         </div>
@@ -106,7 +121,7 @@ export default function Settings() {
                                 <input
                                     type="text"
                                     value={workspace.address}
-                                    onChange={(e) => setWorkspace({ ...workspace, address: e.target.value })}
+                                    onChange={(e) => handleChange('address', e.target.value)}
                                     placeholder="e.g. 123 Blvd Anfa"
                                     className="w-full bg-zinc-50 border border-surface-stroke p-3 rounded-md text-text-main focus:ring-1 focus:ring-brand-accent focus:outline-none"
                                 />
@@ -116,7 +131,7 @@ export default function Settings() {
                                 <input
                                     type="text"
                                     value={workspace.city}
-                                    onChange={(e) => setWorkspace({ ...workspace, city: e.target.value })}
+                                    onChange={(e) => handleChange('city', e.target.value)}
                                     placeholder="Casablanca"
                                     className="w-full bg-zinc-50 border border-surface-stroke p-3 rounded-md text-text-main focus:ring-1 focus:ring-brand-accent focus:outline-none"
                                 />
@@ -126,7 +141,7 @@ export default function Settings() {
                                 <input
                                     type="text"
                                     value={workspace.country}
-                                    onChange={(e) => setWorkspace({ ...workspace, country: e.target.value })}
+                                    onChange={(e) => handleChange('country', e.target.value)}
                                     className="w-full bg-zinc-50 border border-surface-stroke p-3 rounded-md text-text-main focus:ring-1 focus:ring-brand-accent focus:outline-none"
                                 />
                             </div>
@@ -138,11 +153,27 @@ export default function Settings() {
                             <input
                                 type="text"
                                 value={workspace.tax_id}
-                                onChange={(e) => setWorkspace({ ...workspace, tax_id: e.target.value })}
+                                onChange={(e) => handleChange('tax_id', e.target.value)}
                                 placeholder="e.g. ICE 00123456789"
                                 className="w-full bg-zinc-50 border border-surface-stroke p-3 rounded-md text-text-main focus:ring-1 focus:ring-brand-accent focus:outline-none font-mono"
                             />
                         </div>
 
                         {/* Save Bar */}
-                        <div className="pt
+                        <div className="pt-6 border-t border-surface-stroke flex justify-between items-center">
+                            <span className="text-sm text-green-600 font-medium">{message}</span>
+                            <button
+                                type="submit"
+                                disabled={saving}
+                                className="bg-brand-accent text-white px-6 py-2 rounded-md font-medium text-sm hover:bg-zinc-800 transition-colors disabled:opacity-50"
+                            >
+                                {saving ? "Saving..." : "Save Changes"}
+                            </button>
+                        </div>
+
+                    </form>
+                </div>
+            </main>
+        </div>
+    );
+}
