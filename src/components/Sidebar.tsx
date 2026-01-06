@@ -24,14 +24,9 @@ export default function Sidebar() {
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     );
 
-    const handleSignOut = async () => {
-        await supabase.auth.signOut();
-        router.push('/');
-    };
-
     return (
         <aside className="w-72 h-screen bg-black border-r border-white/5 flex flex-col fixed left-0 top-0 z-50">
-            {/* 1. Onboarding Popup (Only shows if name is missing) */}
+            {/* 1. Onboarding Popup (Only shows if user has no name set) */}
             <OnboardingModal />
 
             {/* 2. Logo Section */}
@@ -80,7 +75,7 @@ export default function Sidebar() {
                 </div>
             </nav>
 
-            {/* 4. Settings & Profile Section */}
+            {/* 4. Settings & Dynamic Profile Section */}
             <div className="p-4 space-y-2 bg-black/50 backdrop-blur-xl">
                 <Link
                     href="/settings"
@@ -93,7 +88,7 @@ export default function Sidebar() {
                     <span className="font-medium text-sm">Paramètres</span>
                 </Link>
 
-                {/* Dynamic User Profile Component */}
+                {/* ✅ This component replaces the static "Imane Assal" HTML */}
                 <SidebarProfile />
             </div>
         </aside>
