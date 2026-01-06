@@ -1,27 +1,40 @@
-/* Fixed Vercel Build Version */
 @import "tailwindcss";
 
-/* 1. Define Theme Variables */
+/* ✅ TAILWIND V4 THEME CONFIGURATION */
+@theme {
+  --color-background-dark: #050505;
+  --color-primary: #f4b943;
+  --color-text-secondary: #a1a1aa;
+
+  --animate-fade-in: fadeIn 0.5s ease-out forwards;
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
+
+/* Standard Variables */
 :root {
-  --background-dark: #050505;
-  --primary: #f4b943;
-  --text-secondary: #a1a1aa;
   --gold-gradient: linear-gradient(135deg, #f4b943 0%, #edc967 100%);
 }
 
-/* 2. Base Styles 
-   Using standard CSS properties here prevents the "unknown utility class" build error.
-*/
+/* Base Styles */
 body {
-  background-color: var(--background-dark);
+  background-color: var(--color-background-dark);
   color: white;
   font-family: Arial, Helvetica, sans-serif;
   overflow-x: hidden;
 }
 
-/* 3. Utility Classes */
-
-/* Glass Card Effect */
+/* Utilities */
 .glass-card {
   background: rgba(255, 255, 255, 0.03);
   backdrop-filter: blur(10px);
@@ -29,7 +42,6 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-/* Glass Header */
 .glass-header {
   background: rgba(5, 5, 5, 0.7);
   backdrop-filter: blur(20px);
@@ -37,7 +49,6 @@ body {
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-/* Gold Gradients */
 .bg-gold-gradient {
   background: var(--gold-gradient);
 }
@@ -49,7 +60,6 @@ body {
   color: transparent;
 }
 
-/* Scrollbar Hiding */
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
@@ -59,24 +69,6 @@ body {
   scrollbar-width: none;
 }
 
-/* Decorative Shapes */
 .clip-path-triangle {
   clip-path: polygon(100% 0, 0% 100%, 100% 100%);
-}
-
-/* Animations */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.animate-fade-in {
-  animation: fadeIn 0.5s ease-out forwards;
 }
