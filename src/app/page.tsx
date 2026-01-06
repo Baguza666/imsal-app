@@ -1,78 +1,87 @@
 'use client';
-import { createBrowserClient } from '@supabase/ssr'; // <--- The correct library
-import { useState } from "react";
 
-export default function Home() {
-  const [email, setEmail] = useState("");
+import { createBrowserClient } from '@supabase/ssr';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+
+export default function LoginPage() {
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
+  const [email, setEmail] = useState('');
 
-  // Initialize the client that handles PKCE automatically
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setMessage("");
-
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
+  const handleGoogleLogin = async () => {
+    await supabase.auth.signInWithOAuth({
+      provider: 'google',
       options: {
-        // This ensures Supabase sends a Code (?code=), not a Token (#token)
-        emailRedirectTo: `${location.origin}/auth/callback`,
+        redirectTo: `${location.origin}/auth/callback`,
       },
     });
+  };
 
-    if (error) {
-      setMessage("Error: " + error.message);
-    } else {
-      setMessage("✅ Success! Please check your email now.");
-    }
+  const handleMagicLink = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: `${location.origin}/auth/callback` },
+    });
     setLoading(false);
+    if (error) alert(error.message);
+    else alert('Lien de connexion envoyé ! Vérifiez vos emails.');
   };
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-8 bg-surface-app">
-      <div className="w-full max-w-md space-y-8 text-center">
-        <div>
-          <h1 className="text-5xl font-heading font-bold text-text-hero tracking-tight">
-            IMSAL
-          </h1>
-          <p className="text-text-muted font-mono text-sm uppercase tracking-widest mt-2">
-            Command Center Access
-          </p>
+    <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center p-4 relative overflow-hidden">
+      {/* Background Ambience */}
+      <div className="absolute top-[-20%] left-[-10%] w-[500px] h-[500px] bg-[#f4b943] rounded-full blur-[120px] opacity-10"></div>
+
+      <div className="w-full max-w-md z-10 space-y-8">
+        <div className="text-center space-y-2">
+          <h1 className="text-4xl font-bold text-white tracking-tight">IMSAL<span className="text-[#f4b943]">SERVICES</span></h1>
+          <p className="text-[#a1a1aa] text-sm uppercase tracking-widest">Portail de Gestion</p>
         </div>
 
-        <form onSubmit={handleLogin} className="space-y-4">
-          <div>
+        <div className="glass-card p-8 rounded-3xl border border-white/10 backdrop-blur-xl bg-white/5 space-y-6">
+
+          {/* GOOGLE BUTTON */}
+          <button
+            onClick={handleGoogleLogin}
+            className="w-full bg-white text-black font-bold h-12 rounded-xl flex items-center justify-center gap-3 hover:scale-[1.02] transition-transform"
+          >
+            <img src="https://www.svgrepo.com/show/475656/google-color.svg" className="w-5 h-5" alt="Google" />
+            Continuer avec Google
+          </button>
+
+          <div className="flex items-center gap-4">
+            <div className="h-px bg-white/10 flex-1"></div>
+            <span className="text-xs text-[#a1a1aa] uppercase">Ou par email</span>
+            <div className="h-px bg-white/10 flex-1"></div>
+          </div>
+
+          {/* EMAIL FORM */}
+          <form onSubmit={handleMagicLink} className="space-y-4">
             <input
               type="email"
-              placeholder="ceo@imsal.ma"
+              placeholder="votre@email.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              className="w-full bg-black/40 border border-white/10 rounded-xl px-4 h-12 text-white outline-none focus:border-[#f4b943] transition-colors"
               required
-              className="w-full bg-surface-input border border-border-subtle text-text-hero p-4 rounded-sm focus:border-brand-gold focus:outline-none font-mono text-sm placeholder:text-text-muted"
             />
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-4 bg-brand-gold text-surface-app font-bold rounded-sm hover:bg-white transition-colors uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loading ? "Sending..." : "Send Magic Link"}
-          </button>
-        </form>
-
-        {message && (
-          <div className="p-4 bg-surface-card border border-brand-gold/20 text-brand-gold text-sm font-mono">
-            {message}
-          </div>
-        )}
+            <button
+              disabled={loading}
+              className="w-full bg-gradient-to-r from-[#f4b943] to-[#edc967] text-black font-bold h-12 rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50"
+            >
+              {loading ? 'Envoi...' : 'Recevoir le lien magique'}
+            </button>
+          </form>
+        </div>
       </div>
-    </main>
+    </div>
   );
 }
