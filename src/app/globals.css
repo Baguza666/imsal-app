@@ -1,69 +1,88 @@
 @import "tailwindcss";
 
-@theme {
-  --color-primary: #f4b943;
-  --color-primary-dark: #dca22e;
-  --color-surface-dark: #121212;
-  --color-background-dark: #0a0a0a;
-  --color-border-dark: #262626;
-  --color-text-secondary: #A0A0A0;
-
-  --font-family-sans: 'var(--font-inter)', sans-serif;
-
-  --background-image-gold-gradient: linear-gradient(135deg, #f4b943 0%, #dca22e 100%);
-  --background-image-active-nav-gradient: linear-gradient(90deg, rgba(244, 185, 67, 0.15) 0%, rgba(244, 185, 67, 0.0) 100%);
-
-  --box-shadow-glow: 0 0 20px rgba(244, 185, 67, 0.2);
+/* 1. Define Theme Variables 
+  We define them here so both Tailwind and standard CSS can use them.
+*/
+:root {
+  --background-dark: #050505;
+  --primary: #f4b943;
+  --text-secondary: #a1a1aa;
+  --gold-gradient: linear-gradient(135deg, #f4b943 0%, #edc967 100%);
 }
 
-/* 1. LUXURY SCROLLBARS */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+/* 2. Base Styles 
+  ✅ FIX: We use standard CSS here instead of @apply to avoid the "unknown utility class" build error.
+*/
+body {
+  background-color: var(--background-dark);
+  color: white;
+  font-family: Arial, Helvetica, sans-serif;
+  overflow-x: hidden;
+  /* Prevents unwanted horizontal scrolling */
 }
 
-::-webkit-scrollbar-track {
-  background: #0a0a0a;
+/* 3. Custom Utility Classes 
+  These are used throughout your app for the glassmorphism effect.
+*/
+
+/* Glass Card Effect (Used in Dashboard, Invoices, Settings) */
+.glass-card {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-::-webkit-scrollbar-thumb {
-  background: #262626;
-  border-radius: 3px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #333;
-}
-
-/* 2. GLASS EFFECT UTILITIES */
+/* Glass Header (Used in Top Navigation) */
 .glass-header {
-  background: rgba(10, 10, 10, 0.7);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: rgba(5, 5, 5, 0.7);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-.glass-card {
-  background: rgba(18, 18, 18, 0.7);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 1px solid rgba(38, 38, 38, 0.8);
+/* Gold Gradients */
+.bg-gold-gradient {
+  background: var(--gold-gradient);
 }
 
-/* 3. CHART & GLOW EFFECTS */
-.chart-glow {
-  filter: drop-shadow(0 0 10px rgba(244, 185, 67, 0.2));
+.text-gold-gradient {
+  background: var(--gold-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
-/* 4. MATERIAL ICONS CONFIG */
-.material-symbols-outlined {
-  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
-  user-select: none;
-  /* Prevents selecting icon text */
+/* Scrollbar Hiding (Used in Sidebar and Tables) */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 
-/* 5. GLOBAL DEFAULTS */
-body {
-  background-color: var(--color-background-dark);
-  color: white;
+.no-scrollbar {
+  -ms-overflow-style: none;
+  /* IE and Edge */
+  scrollbar-width: none;
+  /* Firefox */
+}
+
+/* Invoice Decorative Corner */
+.clip-path-triangle {
+  clip-path: polygon(100% 0, 0% 100%, 100% 100%);
+}
+
+/* Simple Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.5s ease-out forwards;
 }
