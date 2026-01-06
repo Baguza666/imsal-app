@@ -1,31 +1,23 @@
 @import "tailwindcss";
 
-/* 1. Define Theme Variables 
-  We define them here so both Tailwind and standard CSS can use them.
-*/
+/* 1. Define Theme Variables */
 :root {
   --background-dark: #050505;
   --primary: #f4b943;
-  --text-secondary: #a1a1aa;
   --gold-gradient: linear-gradient(135deg, #f4b943 0%, #edc967 100%);
 }
 
-/* 2. Base Styles 
-  ✅ FIX: We use standard CSS here instead of @apply to avoid the "unknown utility class" build error.
-*/
+/* 2. Base Styles - STANDARD CSS ONLY (No @apply to prevent build errors) */
 body {
+  background-color: #050505;
+  /* Fallback */
   background-color: var(--background-dark);
   color: white;
   font-family: Arial, Helvetica, sans-serif;
   overflow-x: hidden;
-  /* Prevents unwanted horizontal scrolling */
 }
 
-/* 3. Custom Utility Classes 
-  These are used throughout your app for the glassmorphism effect.
-*/
-
-/* Glass Card Effect (Used in Dashboard, Invoices, Settings) */
+/* 3. Utilities */
 .glass-card {
   background: rgba(255, 255, 255, 0.03);
   backdrop-filter: blur(10px);
@@ -33,7 +25,6 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-/* Glass Header (Used in Top Navigation) */
 .glass-header {
   background: rgba(5, 5, 5, 0.7);
   backdrop-filter: blur(20px);
@@ -41,7 +32,6 @@ body {
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-/* Gold Gradients */
 .bg-gold-gradient {
   background: var(--gold-gradient);
 }
@@ -49,28 +39,23 @@ body {
 .text-gold-gradient {
   background: var(--gold-gradient);
   -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
   background-clip: text;
+  color: transparent;
 }
 
-/* Scrollbar Hiding (Used in Sidebar and Tables) */
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
 
 .no-scrollbar {
   -ms-overflow-style: none;
-  /* IE and Edge */
   scrollbar-width: none;
-  /* Firefox */
 }
 
-/* Invoice Decorative Corner */
 .clip-path-triangle {
   clip-path: polygon(100% 0, 0% 100%, 100% 100%);
 }
 
-/* Simple Animations */
 @keyframes fadeIn {
   from {
     opacity: 0;
