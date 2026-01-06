@@ -1,210 +1,83 @@
-'use client';
-import { createBrowserClient } from '@supabase/ssr';
-import { useEffect, useState } from "react";
+import { createServerClient } from '@supabase/ssr';
+import { cookies } from 'next/headers';
+import { redirect } from "next/navigation";
 import Sidebar from '@/components/Sidebar';
+import SettingsForm from '@/components/settings/SettingsForm';
+import TeamManager from '@/components/settings/TeamManager'; // Import the new component
 
-// 1. TYPE DEFINITION
-interface WorkspaceData {
-    id: string;
-    name: string;
-    address: string;
-    city: string;
-    country: string;
-    tax_id: string;
-}
-
-export default function Settings() {
-    const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
-    const [message, setMessage] = useState("");
-
-    const [workspace, setWorkspace] = useState<WorkspaceData>({
-        id: "",
-        name: "",
-        address: "",
-        city: "",
-        country: "",
-        tax_id: ""
-    });
-
-    const supabase = createBrowserClient(
+export default async function SettingsPage() {
+    const cookieStore = await cookies();
+    const supabase = createServerClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        { cookies: { get: (name) => cookieStore.get(name)?.value } }
     );
 
-    useEffect(() => {
-        const fetchData = async () => {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) redirect("/");
 
-            const { data: ws } = await supabase
-                .from('workspaces')
-                .select('*')
-                .eq('owner_id', user.id)
-                .single();
+    // 1. Fetch User Profile to check Role
+    const { data: userProfile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
 
-            if (ws) {
-                setWorkspace({
-                    id: ws.id,
-                    name: ws.name || "",
-                    address: ws.address || "",
-                    city: ws.city || "",
-                    country: ws.country || "",
-                    tax_id: ws.tax_id || ""
-                });
-            }
-            // If no workspace found, we leave the ID as "" so we know to create one later.
-            setLoading(false);
-        };
-        fetchData();
-    }, []);
+    // If user is pending, show a "Waiting" screen or redirect
+    if (userProfile?.role === 'pending') {
+        return (
+            <div className="h-screen w-full bg-black flex flex-col items-center justify-center text-white p-8 text-center">
+                <span className="material-symbols-outlined text-6xl text-primary mb-4">lock_clock</span>
+                <h1 className="text-2xl font-bold mb-2">Compte en attente de validation</h1>
+                <p className="text-text-secondary max-w-md">
+                    Votre demande d'accès a été envoyée à l'administrateur.
+                    Vous recevrez un accès une fois votre rôle attribué.
+                </p>
+            </div>
+        );
+    }
 
-    const handleSave = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setSaving(true);
-        setMessage("");
+    // 2. Fetch Workspace
+    const { data: workspace } = await supabase
+        .from('workspaces')
+        .select('*')
+        .eq('owner_id', user.id)
+        .single();
 
-        // Get user again to ensure security
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-            setMessage("Error: Not authenticated");
-            setSaving(false);
-            return;
-        }
-
-        let error;
-
-        // 🛑 LOGIC FIX: Check if we are Creating or Updating
-        if (!workspace.id) {
-            // SCENARIO A: CREATE NEW (The "Fix")
-            const { data: newWs, error: createError } = await supabase
-                .from('workspaces')
-                .insert([{
-                    owner_id: user.id,
-                    name: workspace.name,
-                    address: workspace.address,
-                    city: workspace.city,
-                    country: workspace.country,
-                    tax_id: workspace.tax_id
-                }])
-                .select()
-                .single();
-
-            if (newWs) {
-                setWorkspace(prev => ({ ...prev, id: newWs.id })); // Save the new ID
-            }
-            error = createError;
-        } else {
-            // SCENARIO B: UPDATE EXISTING
-            const { error: updateError } = await supabase
-                .from('workspaces')
-                .update({
-                    name: workspace.name,
-                    address: workspace.address,
-                    city: workspace.city,
-                    country: workspace.country,
-                    tax_id: workspace.tax_id
-                })
-                .eq('id', workspace.id);
-            error = updateError;
-        }
-
-        if (error) {
-            setMessage("Error: " + error.message);
-        } else {
-            setMessage("✅ Settings Saved Successfully");
-        }
-        setSaving(false);
-    };
-
-    const handleChange = (field: keyof WorkspaceData, value: string) => {
-        setWorkspace(prev => ({ ...prev, [field]: value }));
-    };
-
-    if (loading) return <div className="min-h-screen bg-surface-app flex items-center justify-center text-text-muted">Loading Configuration...</div>;
+    // 3. Fetch All Profiles (Only if Admin)
+    let allProfiles = [];
+    if (userProfile?.role === 'admin') {
+        const { data } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
+        allProfiles = data || [];
+    }
 
     return (
-        <div className="min-h-screen bg-surface-app">
-            <Sidebar />
+        <div className="bg-background-dark text-white font-sans overflow-hidden min-h-screen antialiased selection:bg-primary selection:text-black">
+            <div className="flex h-full w-full">
+                <Sidebar />
 
-            <main className="ml-64 p-12 max-w-4xl">
-                <h1 className="text-2xl font-bold text-text-main mb-2">Workspace Settings</h1>
-                <p className="text-text-muted text-sm mb-8">Configure your business identity for invoices.</p>
+                <main className="flex-1 flex flex-col relative overflow-hidden bg-background-dark ml-72">
 
-                <div className="bg-surface-card border border-surface-stroke rounded-lg shadow-subtle p-8">
-                    <form onSubmit={handleSave} className="space-y-6">
-
-                        {/* Company Name */}
-                        <div>
-                            <label className="block text-xs font-mono text-text-muted uppercase tracking-widest mb-2">Company Name</label>
-                            <input
-                                type="text"
-                                value={workspace.name}
-                                onChange={(e) => handleChange('name', e.target.value)}
-                                className="w-full bg-zinc-50 border border-surface-stroke p-3 rounded-md text-text-main focus:ring-1 focus:ring-brand-accent focus:outline-none"
-                            />
+                    <header className="absolute top-0 left-0 right-0 z-10 glass-header px-8 h-20 flex items-center justify-between">
+                        <h2 className="text-white text-xl font-bold">PARAMÈTRES</h2>
+                        <div className="px-3 py-1 bg-white/10 rounded-full text-xs font-bold border border-white/10">
+                            Rôle: <span className="text-primary uppercase">{userProfile?.role}</span>
                         </div>
+                    </header>
 
-                        {/* Address Grid */}
-                        <div className="grid grid-cols-2 gap-6">
-                            <div className="col-span-2">
-                                <label className="block text-xs font-mono text-text-muted uppercase tracking-widest mb-2">Street Address</label>
-                                <input
-                                    type="text"
-                                    value={workspace.address}
-                                    onChange={(e) => handleChange('address', e.target.value)}
-                                    placeholder="e.g. 123 Blvd Anfa"
-                                    className="w-full bg-zinc-50 border border-surface-stroke p-3 rounded-md text-text-main focus:ring-1 focus:ring-brand-accent focus:outline-none"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-mono text-text-muted uppercase tracking-widest mb-2">City</label>
-                                <input
-                                    type="text"
-                                    value={workspace.city}
-                                    onChange={(e) => handleChange('city', e.target.value)}
-                                    placeholder="Casablanca"
-                                    className="w-full bg-zinc-50 border border-surface-stroke p-3 rounded-md text-text-main focus:ring-1 focus:ring-brand-accent focus:outline-none"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-mono text-text-muted uppercase tracking-widest mb-2">Country</label>
-                                <input
-                                    type="text"
-                                    value={workspace.country}
-                                    onChange={(e) => handleChange('country', e.target.value)}
-                                    className="w-full bg-zinc-50 border border-surface-stroke p-3 rounded-md text-text-main focus:ring-1 focus:ring-brand-accent focus:outline-none"
-                                />
-                            </div>
+                    <div className="flex-1 overflow-y-auto pt-28 pb-10 px-8">
+                        <div className="max-w-[800px] mx-auto w-full flex flex-col gap-10">
+
+                            {/* Show Team Manager ONLY to Admins */}
+                            {userProfile?.role === 'admin' && (
+                                <TeamManager profiles={allProfiles} currentUserId={user.id} />
+                            )}
+
+                            <SettingsForm workspace={workspace} />
                         </div>
-
-                        {/* Tax ID */}
-                        <div>
-                            <label className="block text-xs font-mono text-text-muted uppercase tracking-widest mb-2">Tax ID / ICE / RC</label>
-                            <input
-                                type="text"
-                                value={workspace.tax_id}
-                                onChange={(e) => handleChange('tax_id', e.target.value)}
-                                placeholder="e.g. ICE 00123456789"
-                                className="w-full bg-zinc-50 border border-surface-stroke p-3 rounded-md text-text-main focus:ring-1 focus:ring-brand-accent focus:outline-none font-mono"
-                            />
-                        </div>
-
-                        {/* Save Bar */}
-                        <div className="pt-6 border-t border-surface-stroke flex justify-between items-center">
-                            <span className="text-sm text-green-600 font-medium">{message}</span>
-                            <button
-                                type="submit"
-                                disabled={saving}
-                                className="bg-brand-accent text-white px-6 py-2 rounded-md font-medium text-sm hover:bg-zinc-800 transition-colors disabled:opacity-50"
-                            >
-                                {saving ? "Saving..." : "Save Changes"}
-                            </button>
-                        </div>
-
-                    </form>
-                </div>
-            </main>
+                    </div>
+                </main>
+            </div>
         </div>
     );
 }
