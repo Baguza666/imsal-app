@@ -1,234 +1,236 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { createBrowserClient } from '@supabase/ssr';
 import { useRouter } from 'next/navigation';
-import { createFullInvoice } from '@/app/actions/invoices';
-import InvoiceTemplate from './InvoiceTemplate';
 
-interface InvoiceBuilderProps {
-    clients: any[];
-    products: any[];
-    nextInvoiceNumber: string;
-    user: any;
-    workspace: any;
-}
-
-export default function InvoiceBuilder({ clients, products, nextInvoiceNumber, user, workspace }: InvoiceBuilderProps) {
+export default function InvoiceBuilder() {
     const router = useRouter();
-    const [loading, setLoading] = useState(false);
+    const supabase = createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
 
-    // FORM STATE
-    const [clientId, setClientId] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [clients, setClients] = useState<any[]>([]);
+    const [products, setProducts] = useState<any[]>([]);
+
+    // Invoice State
+    const [selectedClientId, setSelectedClientId] = useState('');
     const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split('T')[0]);
     const [dueDate, setDueDate] = useState('');
+    const [items, setItems] = useState([{ description: '', quantity: 1, price: 0 }]);
 
-    // ITEMS STATE
-    const [items, setItems] = useState([
-        { id: Date.now(), product_id: '', description: '', quantity: 1, unit_price: 0 }
-    ]);
+    // Fetch Clients & Products on Load
+    useEffect(() => {
+        const fetchData = async () => {
+            const { data: clientsData } = await supabase.from('clients').select('*');
+            const { data: productsData } = await supabase.from('products').select('*');
+            if (clientsData) setClients(clientsData);
+            if (productsData) setProducts(productsData);
+        };
+        fetchData();
+    }, []);
 
-    // CALCULATIONS
-    const subtotal = items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
-    const taxRate = 0.20; // 20% TVA
-    const taxAmount = subtotal * taxRate;
-    const total = subtotal + taxAmount;
-
-    // DERIVED DATA FOR PREVIEW (Matches InvoiceTemplateProps exactly)
-    const selectedClient = clients.find(c => c.id === clientId);
-
-    const previewData = {
-        invoice_number: nextInvoiceNumber,
-        date: invoiceDate,
-        due_date: dueDate,
-        client: selectedClient,
-        workspace: workspace,
-        items: items,
-        subtotal: subtotal,
-        taxAmount: taxAmount,
-        total: total
+    // Calculations
+    const calculateTotal = () => {
+        return items.reduce((sum, item) => sum + (item.quantity * item.price), 0);
     };
 
-    // HANDLERS
     const handleAddItem = () => {
-        setItems([...items, { id: Date.now(), product_id: '', description: '', quantity: 1, unit_price: 0 }]);
+        setItems([...items, { description: '', quantity: 1, price: 0 }]);
     };
 
-    const handleRemoveItem = (id: number) => {
-        if (items.length > 1) {
-            setItems(items.filter(item => item.id !== id));
-        }
-    };
-
-    const handleProductSelect = (index: number, productId: string) => {
-        const product = products.find(p => p.id === productId);
+    const handleRemoveItem = (index: number) => {
         const newItems = [...items];
-        newItems[index].product_id = productId;
-
-        if (product) {
-            newItems[index].description = product.name;
-            newItems[index].unit_price = product.price;
-        }
+        newItems.splice(index, 1);
         setItems(newItems);
     };
 
-    const updateItem = (index: number, field: string, value: any) => {
-        const newItems = [...items];
-        // @ts-ignore
+    const handleItemChange = (index: number, field: string, value: any) => {
+        const newItems = [...items] as any;
         newItems[index][field] = value;
         setItems(newItems);
     };
 
-    const handleSubmit = async () => {
-        if (!clientId) return alert('Veuillez sélectionner un client');
+    // Select a Pre-defined Product
+    const handleProductSelect = (index: number, productId: string) => {
+        const product = products.find(p => p.id === productId);
+        if (product) {
+            const newItems = [...items];
+            newItems[index].description = product.name;
+            newItems[index].price = product.price;
+            setItems(newItems);
+        }
+    };
 
+    const handleSave = async () => {
+        if (!selectedClientId) return alert('Veuillez sélectionner un client.');
         setLoading(true);
-        const formData = {
-            client_id: clientId,
-            invoice_number: nextInvoiceNumber,
-            status: 'Pending',
-            due_date: dueDate || invoiceDate,
-            total_amount: total
-        };
 
-        const result = await createFullInvoice(formData, items);
+        const { data: { user } } = await supabase.auth.getUser();
 
-        if (result.success) {
-            router.push('/dashboard');
+        // 1. Create Invoice
+        const { data: invoice, error: invoiceError } = await supabase
+            .from('invoices')
+            .insert({
+                owner_id: user?.id,
+                client_id: selectedClientId,
+                invoice_number: `INV-${Date.now().toString().slice(-6)}`, // Simple auto-number
+                status: 'pending',
+                issue_date: invoiceDate,
+                due_date: dueDate,
+                total: calculateTotal()
+            })
+            .select()
+            .single();
+
+        if (invoiceError) {
+            alert('Erreur création facture: ' + invoiceError.message);
+            setLoading(false);
+            return;
+        }
+
+        // 2. Create Invoice Items
+        const invoiceItems = items.map(item => ({
+            invoice_id: invoice.id,
+            description: item.description,
+            quantity: item.quantity,
+            unit_price: item.price,
+            amount: item.quantity * item.price
+        }));
+
+        const { error: itemsError } = await supabase
+            .from('invoice_items')
+            .insert(invoiceItems);
+
+        if (!itemsError) {
+            router.push('/invoices'); // Redirect back to list
+            router.refresh();
         } else {
-            alert('Erreur lors de la création');
+            alert("Erreur détails facture");
         }
         setLoading(false);
     };
 
     return (
-        <div className="flex flex-col lg:flex-row h-full gap-6">
+        <div className="max-w-4xl mx-auto space-y-8">
 
-            {/* LEFT COLUMN: EDITOR (Scrollable) */}
-            <div className="flex-1 lg:max-w-[50%] flex flex-col gap-6 overflow-y-auto pb-20 no-scrollbar">
-
-                {/* Header Actions */}
-                <div className="flex justify-between items-center">
-                    <button onClick={() => router.back()} className="text-text-secondary hover:text-white text-sm font-medium">
-                        &larr; Annuler
-                    </button>
-                    <button
-                        onClick={handleSubmit}
-                        disabled={loading}
-                        className="px-6 py-2 rounded-full bg-gold-gradient text-black font-bold shadow-[0_0_20px_rgba(244,185,67,0.3)] hover:scale-105 transition-transform disabled:opacity-50"
+            {/* HEADER INFO */}
+            <div className="glass-card p-6 rounded-2xl border border-white/5 grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label className="block text-xs text-[#a1a1aa] uppercase font-bold mb-2">Client</label>
+                    <select
+                        value={selectedClientId}
+                        onChange={(e) => setSelectedClientId(e.target.value)}
+                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-primary"
                     >
-                        {loading ? 'Enregistrement...' : 'ENREGISTRER'}
-                    </button>
+                        <option value="">Sélectionner un client...</option>
+                        {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
                 </div>
 
-                {/* Configuration Card */}
-                <div className="glass-card p-6 rounded-2xl border border-white/5 space-y-4">
-                    <h3 className="text-white font-bold mb-4 flex items-center gap-2">
-                        <span className="material-symbols-outlined text-primary">settings</span>
-                        Informations Générales
-                    </h3>
-
-                    <div className="space-y-1">
-                        <label className="text-xs text-text-secondary uppercase font-bold tracking-wider">Client</label>
-                        <select
-                            value={clientId}
-                            onChange={(e) => setClientId(e.target.value)}
-                            className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-primary outline-none transition-colors cursor-pointer appearance-none"
-                        >
-                            <option value="">Sélectionner un client...</option>
-                            {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                        </select>
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-xs text-[#a1a1aa] uppercase font-bold mb-2">Date d'émission</label>
+                        <input
+                            type="date"
+                            value={invoiceDate}
+                            onChange={(e) => setInvoiceDate(e.target.value)}
+                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-primary"
+                        />
                     </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1">
-                            <label className="text-xs text-text-secondary uppercase font-bold tracking-wider">Date Facture</label>
-                            <input type="date" value={invoiceDate} onChange={(e) => setInvoiceDate(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-primary" />
-                        </div>
-                        <div className="space-y-1">
-                            <label className="text-xs text-text-secondary uppercase font-bold tracking-wider">Échéance</label>
-                            <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-primary" />
-                        </div>
+                    <div>
+                        <label className="block text-xs text-[#a1a1aa] uppercase font-bold mb-2">Échéance</label>
+                        <input
+                            type="date"
+                            value={dueDate}
+                            onChange={(e) => setDueDate(e.target.value)}
+                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-primary"
+                        />
                     </div>
                 </div>
+            </div>
 
-                {/* Items Card */}
-                <div className="glass-card p-6 rounded-2xl border border-white/5">
-                    <h3 className="text-white font-bold mb-4 flex items-center gap-2">
-                        <span className="material-symbols-outlined text-primary">shopping_cart</span>
-                        Lignes de facture
-                    </h3>
-                    <div className="flex flex-col gap-4">
-                        {items.map((item, index) => (
-                            <div key={item.id} className="p-4 rounded-xl bg-white/[0.03] border border-white/5 relative group hover:border-white/10 transition-all">
-                                <button onClick={() => handleRemoveItem(item.id)} className="absolute top-2 right-2 text-text-secondary hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <span className="material-symbols-outlined text-[16px]">close</span>
-                                </button>
+            {/* LINE ITEMS */}
+            <div className="glass-card p-6 rounded-2xl border border-white/5">
+                <h3 className="text-lg font-bold text-white mb-4">Services & Produits</h3>
 
-                                <div className="grid grid-cols-1 gap-3">
-                                    {/* Product Select */}
-                                    <select
-                                        value={item.product_id}
-                                        onChange={(e) => handleProductSelect(index, e.target.value)}
-                                        className="w-full bg-transparent text-primary text-xs font-bold outline-none mb-1 cursor-pointer"
-                                    >
-                                        <option value="">Sélectionner un produit (Auto-remplissage)...</option>
-                                        {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                                    </select>
+                <div className="space-y-4">
+                    {items.map((item, index) => (
+                        <div key={index} className="flex gap-4 items-start">
+                            <div className="flex-1 space-y-2">
+                                {/* Product Select (Optional Helper) */}
+                                <select
+                                    onChange={(e) => handleProductSelect(index, e.target.value)}
+                                    className="w-full bg-white/5 text-xs text-[#a1a1aa] border border-white/5 rounded-lg p-2 mb-1"
+                                >
+                                    <option value="">Choisir un produit enregistré...</option>
+                                    {products.map(p => <option key={p.id} value={p.id}>{p.name} ({p.price} Dh)</option>)}
+                                </select>
 
-                                    {/* Description */}
-                                    <input
-                                        type="text"
-                                        value={item.description}
-                                        onChange={(e) => updateItem(index, 'description', e.target.value)}
-                                        placeholder="Description du service"
-                                        className="w-full bg-transparent text-white border-b border-white/10 pb-1 focus:border-primary outline-none text-sm font-medium placeholder:text-text-secondary/50"
-                                    />
-
-                                    {/* Numbers Row */}
-                                    <div className="flex gap-4 mt-1">
-                                        <div className="flex-1">
-                                            <label className="text-[10px] text-text-secondary uppercase">Qté</label>
-                                            <input type="number" min="1" value={item.quantity} onChange={(e) => updateItem(index, 'quantity', parseFloat(e.target.value))} className="w-full bg-black/20 rounded-lg px-2 py-1 text-white text-sm text-right border border-white/5 focus:border-primary outline-none" />
-                                        </div>
-                                        <div className="flex-1">
-                                            <label className="text-[10px] text-text-secondary uppercase">Prix Unit.</label>
-                                            <input type="number" step="0.01" value={item.unit_price} onChange={(e) => updateItem(index, 'unit_price', parseFloat(e.target.value))} className="w-full bg-black/20 rounded-lg px-2 py-1 text-white text-sm text-right border border-white/5 focus:border-primary outline-none" />
-                                        </div>
-                                        <div className="flex-1 text-right">
-                                            <label className="text-[10px] text-text-secondary uppercase">Total</label>
-                                            <div className="text-sm font-bold text-white pt-1">{(item.quantity * item.unit_price).toFixed(2)} Dh</div>
-                                        </div>
-                                    </div>
-                                </div>
+                                <input
+                                    placeholder="Description du service"
+                                    value={item.description}
+                                    onChange={(e) => handleItemChange(index, 'description', e.target.value)}
+                                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-primary"
+                                />
                             </div>
-                        ))}
 
-                        <button onClick={handleAddItem} className="w-full py-3 rounded-xl border border-dashed border-white/20 text-text-secondary hover:text-white hover:border-primary/50 hover:bg-white/5 transition-all text-sm font-bold flex items-center justify-center gap-2">
-                            <span className="material-symbols-outlined text-[18px]">add</span> Ajouter une ligne
-                        </button>
-                    </div>
+                            <div className="w-24">
+                                <input
+                                    type="number"
+                                    placeholder="Qté"
+                                    value={item.quantity}
+                                    onChange={(e) => handleItemChange(index, 'quantity', parseFloat(e.target.value))}
+                                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-primary text-center"
+                                />
+                            </div>
+
+                            <div className="w-32">
+                                <input
+                                    type="number"
+                                    placeholder="Prix"
+                                    value={item.price}
+                                    onChange={(e) => handleItemChange(index, 'price', parseFloat(e.target.value))}
+                                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-primary text-right"
+                                />
+                            </div>
+
+                            <button
+                                onClick={() => handleRemoveItem(index)}
+                                className="mt-8 text-red-500 hover:text-red-400"
+                            >
+                                <span className="material-symbols-outlined">delete</span>
+                            </button>
+                        </div>
+                    ))}
                 </div>
 
+                <button
+                    onClick={handleAddItem}
+                    className="mt-6 text-primary text-sm font-bold flex items-center gap-2 hover:opacity-80"
+                >
+                    <span className="material-symbols-outlined text-[18px]">add</span>
+                    AJOUTER UNE LIGNE
+                </button>
             </div>
 
-            {/* RIGHT COLUMN: LIVE PREVIEW (Sticky) */}
-            <div className="hidden lg:block flex-1 h-full sticky top-0 overflow-y-auto rounded-xl">
-                <div className="sticky top-6">
-                    <div className="mb-4 flex justify-between items-center px-2">
-                        <span className="text-xs text-text-secondary uppercase tracking-widest font-bold flex items-center gap-2">
-                            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                            Aperçu en direct
-                        </span>
-                        <span className="text-[10px] bg-white/10 px-2 py-1 rounded text-white border border-white/5">Format A4</span>
-                    </div>
-
-                    {/* RENDER THE TEMPLATE */}
-                    <div className="origin-top transform scale-[0.85] 2xl:scale-100 transition-transform">
-                        <InvoiceTemplate data={previewData} />
-                    </div>
+            {/* FOOTER TOTALS */}
+            <div className="flex justify-end items-center gap-8 pt-4">
+                <div className="text-right">
+                    <p className="text-sm text-[#a1a1aa]">Total HT</p>
+                    <p className="text-3xl font-bold text-white">{calculateTotal().toFixed(2)} <span className="text-primary text-lg">Dh</span></p>
                 </div>
-            </div>
 
+                <button
+                    onClick={handleSave}
+                    disabled={loading}
+                    className="bg-gold-gradient text-black font-bold px-8 py-4 rounded-xl hover:scale-105 transition-transform"
+                >
+                    {loading ? 'ENREGISTREMENT...' : 'CRÉER LA FACTURE'}
+                </button>
+            </div>
         </div>
     );
 }
