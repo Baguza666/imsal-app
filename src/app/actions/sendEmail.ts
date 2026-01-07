@@ -6,10 +6,12 @@ import { cookies } from 'next/headers';
 
 export async function sendEmail({
     to,
+    cc, // <--- NEW: Accept a CC address
     subject,
     html
 }: {
     to: string,
+    cc?: string, // <--- NEW: Optional string
     subject: string,
     html: string
 }) {
@@ -32,14 +34,14 @@ export async function sendEmail({
         .single();
 
     if (!config) {
-        return { success: false, message: 'Configuration email manquante. Allez dans Paramètres.' };
+        return { success: false, message: 'Configuration email manquante.' };
     }
 
     // 3. Configure Transporter
     const transporter = nodemailer.createTransport({
         host: config.smtp_host,
         port: config.smtp_port,
-        secure: config.smtp_port === 465, // true for 465, false for other ports
+        secure: config.smtp_port === 465,
         auth: {
             user: config.smtp_user,
             pass: config.smtp_password,
@@ -50,9 +52,10 @@ export async function sendEmail({
     try {
         await transporter.sendMail({
             from: `"${config.sender_name || 'IMSAL Services'}" <${config.smtp_user}>`,
-            to,
-            subject,
-            html,
+            to: to,
+            cc: cc, // <--- NEW: Send the CC here
+            subject: subject,
+            html: html,
         });
         return { success: true, message: 'Email envoyé avec succès !' };
     } catch (error: any) {

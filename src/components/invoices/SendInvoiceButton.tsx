@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { sendEmail } from '@/app/actions/sendEmail';
-import { useModal } from '@/components/ui/ModalProvider'; // Import Hook
+import { useModal } from '@/components/ui/ModalProvider';
 
 export default function SendInvoiceButton({
     clientEmail,
@@ -16,36 +16,49 @@ export default function SendInvoiceButton({
     amount: number
 }) {
     const [loading, setLoading] = useState(false);
-    const { showModal } = useModal(); // Use the hook
+    const { showModal } = useModal();
+
+    // DEFINE YOUR CC ADDRESS HERE (Or fetch it from settings later)
+    const MY_CC_EMAIL = "hichamzineddine2@gmail.com";
 
     const handleSend = () => {
-        if (!clientEmail) {
+        // 1. Check if Client Email exists
+        if (!clientEmail || clientEmail === 'pending@example.com') {
             showModal({
-                title: "Email manquant",
-                message: "Ce client n'a pas d'adresse email enregistrée.",
+                title: "Email Client Manquant",
+                message: `Le client "${clientName}" n'a pas d'email valide enregistré. Veuillez modifier le client dans l'onglet Clients.`,
                 type: "error"
             });
             return;
         }
 
-        // Replace native confirm() with showModal()
+        // 2. Show Confirmation
         showModal({
             title: "Confirmer l'envoi",
-            message: `Envoyer la facture #${invoiceNumber} (${amount} Dh) à ${clientEmail} ?`,
+            message: `Envoyer la facture #${invoiceNumber} à ${clientEmail} ? (Une copie sera envoyée à ${MY_CC_EMAIL})`,
             type: "confirm",
-            confirmText: "Envoyer l'email",
+            confirmText: "Envoyer",
             onConfirm: async () => {
                 setLoading(true);
+
                 const result = await sendEmail({
                     to: clientEmail,
+                    cc: MY_CC_EMAIL, // <--- Sending the CC
                     subject: `Facture #${invoiceNumber} - IMSAL Services`,
-                    html: `...your html code...`
+                    html: `
+            <div style="font-family: Arial, sans-serif; color: #333;">
+              <h2>Bonjour ${clientName},</h2>
+              <p>Veuillez trouver ci-joint votre facture <strong>#${invoiceNumber}</strong> d'un montant de <strong>${amount} Dh</strong>.</p>
+              <br>
+              <p>Cordialement,<br><strong>L'équipe IMSAL Services</strong></p>
+            </div>
+          `
                 });
+
                 setLoading(false);
 
-                // Show success/error result
                 showModal({
-                    title: result.success ? "Email Envoyé" : "Erreur",
+                    title: result.success ? "Envoyé !" : "Erreur",
                     message: result.message,
                     type: result.success ? "success" : "error"
                 });
