@@ -1,159 +1,117 @@
 'use client';
 
 import { useState } from 'react';
-import { createBrowserClient } from '@supabase/ssr';
-import { useUserRole } from '@/hooks/useUserRole';
+import { updateClient } from '@/app/actions/updateClient';
+import { useModal } from '@/components/ui/ModalProvider';
 
 export default function ClientsList({ initialClients }: { initialClients: any[] }) {
-    const { isAdmin, isEditor, isViewer } = useUserRole();
     const [clients, setClients] = useState(initialClients);
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [loading, setLoading] = useState(false);
+    const [editingClient, setEditingClient] = useState<any | null>(null);
+    const { showModal } = useModal();
 
-    // Form State
-    const [form, setForm] = useState({ name: '', email: '', phone: '', address: '' });
+    // Handle Edit Form Submit
+    const handleUpdate = async (formData: FormData) => {
+        const result = await updateClient(formData);
 
-    const supabase = createBrowserClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    );
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setLoading(true);
-
-        const { data: { user } } = await supabase.auth.getUser();
-
-        if (!user) return;
-
-        if (isAdmin) {
-            // ADMIN: Add directly to 'clients'
-            const { data, error } = await supabase
-                .from('clients')
-                .insert([{ ...form, owner_id: user.id }])
-                .select()
-                .single();
-
-            if (!error && data) {
-                setClients([data, ...clients]);
-                closeModal();
-            } else {
-                alert("Erreur lors de l'ajout.");
-            }
+        if (result.success) {
+            showModal({ title: "Succès", message: "Client mis à jour !", type: "success" });
+            setEditingClient(null); // Close modal
+            // Optimistic update (refresh data locally)
+            setClients(clients.map(c => c.id === formData.get('id') ? {
+                ...c,
+                name: formData.get('name'),
+                email: formData.get('email'),
+                address: formData.get('address'),
+                ice: formData.get('ice')
+            } : c));
+        } else {
+            showModal({ title: "Erreur", message: result.message, type: "error" });
         }
-        else if (isEditor) {
-            // EDITOR: Send request to 'resource_requests'
-            const { error } = await supabase
-                .from('resource_requests')
-                .insert({
-                    user_id: user.id,
-                    type: 'client',
-                    details: form,
-                    status: 'pending'
-                });
-
-            if (!error) {
-                alert("Demande envoyée à l'administrateur avec succès !");
-                closeModal();
-            } else {
-                alert("Erreur lors de l'envoi de la demande.");
-            }
-        }
-        setLoading(false);
-    };
-
-    const handleDelete = async (id: string) => {
-        if (!isAdmin) return; // Double check security
-        if (!confirm('Supprimer ce client ?')) return;
-
-        const { error } = await supabase.from('clients').delete().eq('id', id);
-        if (!error) {
-            setClients(clients.filter(c => c.id !== id));
-        }
-    };
-
-    const closeModal = () => {
-        setIsModalOpen(false);
-        setForm({ name: '', email: '', phone: '', address: '' });
     };
 
     return (
-        <div>
-            {/* HEADER: Hide button for Viewers */}
-            {!isViewer && (
-                <div className="flex justify-end mb-6">
-                    <button
-                        onClick={() => setIsModalOpen(true)}
-                        className="bg-gold-gradient text-black px-6 py-2 rounded-xl font-bold hover:scale-105 transition-transform flex items-center gap-2"
-                    >
-                        <span className="material-symbols-outlined text-[20px]">
-                            {isAdmin ? 'person_add' : 'outgoing_mail'}
-                        </span>
-                        {isAdmin ? 'NOUVEAU CLIENT' : 'DEMANDER AJOUT'}
-                    </button>
-                </div>
-            )}
+        <>
+            {/* GRID LIST */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {clients.length === 0 ? (
+                    <p className="text-gray-500 text-center col-span-full py-10">Aucun client enregistré.</p>
+                ) : (
+                    clients.map((client) => (
+                        <div key={client.id} className="glass-card p-6 rounded-xl border border-white/5 group relative hover:border-primary/50 transition-colors">
 
-            {/* LIST */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {clients.map((client) => (
-                    <div key={client.id} className="glass-card p-6 rounded-2xl border border-white/5 hover:border-primary/50 transition-colors group relative">
+                            <div className="flex items-start justify-between mb-4">
+                                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xl">
+                                    {client.name.charAt(0).toUpperCase()}
+                                </div>
 
-                        {/* Delete Button: Only for Admin */}
-                        {isAdmin && (
-                            <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button onClick={() => handleDelete(client.id)} className="text-red-500 hover:text-red-400">
-                                    <span className="material-symbols-outlined text-[20px]">delete</span>
+                                {/* EDIT BUTTON (Visible on Hover) */}
+                                <button
+                                    onClick={() => setEditingClient(client)}
+                                    className="opacity-0 group-hover:opacity-100 p-2 hover:bg-white/10 rounded-lg transition-all"
+                                    title="Modifier"
+                                >
+                                    <span className="material-symbols-outlined text-sm">edit</span>
                                 </button>
                             </div>
-                        )}
 
-                        <div className="flex items-center gap-4 mb-4">
-                            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-white/10 to-transparent flex items-center justify-center text-white font-bold text-lg border border-white/10">
-                                {client.name.charAt(0).toUpperCase()}
-                            </div>
-                            <div>
-                                <h3 className="text-white font-bold">{client.name}</h3>
-                                <p className="text-xs text-text-secondary">Client</p>
+                            <h3 className="font-bold text-lg text-white mb-1">{client.name}</h3>
+                            <p className="text-sm text-gray-400 mb-4">{client.email || 'Pas d\'email'}</p>
+
+                            <div className="space-y-2 text-xs text-gray-500 border-t border-white/5 pt-4">
+                                {client.ice && (
+                                    <div className="flex justify-between">
+                                        <span>ICE:</span> <span className="text-white">{client.ice}</span>
+                                    </div>
+                                )}
+                                {client.address && (
+                                    <div className="flex justify-between items-start">
+                                        <span>Adresse:</span> <span className="text-white text-right max-w-[60%] truncate">{client.address}</span>
+                                    </div>
+                                )}
                             </div>
                         </div>
-
-                        <div className="space-y-2 text-sm text-text-secondary">
-                            {client.email && <div className="flex items-center gap-2"><span className="material-symbols-outlined text-[16px]">mail</span> {client.email}</div>}
-                            {client.phone && <div className="flex items-center gap-2"><span className="material-symbols-outlined text-[16px]">call</span> {client.phone}</div>}
-                        </div>
-                    </div>
-                ))}
+                    ))
+                )}
             </div>
 
-            {clients.length === 0 && (
-                <div className="text-center py-20 text-text-secondary">
-                    <p>Aucun client enregistré.</p>
-                </div>
-            )}
-
-            {/* MODAL */}
-            {isModalOpen && (
+            {/* EDIT MODAL */}
+            {editingClient && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-                    <div className="bg-[#0A0A0A] border border-white/10 p-8 rounded-3xl max-w-md w-full relative">
-                        <button onClick={closeModal} className="absolute top-4 right-4 text-text-secondary hover:text-white"><span className="material-symbols-outlined">close</span></button>
+                    <div className="bg-[#0A0A0A] border border-white/10 w-full max-w-lg rounded-2xl p-6 shadow-2xl animate-in zoom-in-95">
+                        <h3 className="text-xl font-bold text-white mb-6">Modifier le client</h3>
 
-                        <h3 className="text-xl font-bold text-white mb-6">
-                            {isAdmin ? 'Nouveau Client' : "Demande d'ajout Client"}
-                        </h3>
+                        <form action={handleUpdate} className="space-y-4">
+                            <input type="hidden" name="id" value={editingClient.id} />
 
-                        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-                            <input placeholder="Nom complet" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-primary" required />
-                            <input placeholder="Email" type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className="bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-primary" />
-                            <input placeholder="Téléphone" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} className="bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-primary" />
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-1">
+                                    <label className="text-xs text-gray-500 uppercase font-bold">Nom Entreprise</label>
+                                    <input name="name" defaultValue={editingClient.name} className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white focus:border-primary outline-none" required />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-xs text-gray-500 uppercase font-bold">Email</label>
+                                    <input name="email" defaultValue={editingClient.email} className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white focus:border-primary outline-none" required />
+                                </div>
+                            </div>
 
-                            <button disabled={loading} className="mt-2 bg-gold-gradient text-black font-bold py-3 rounded-xl hover:opacity-90">
-                                {loading ? 'Traitement...' : (isAdmin ? 'ENREGISTRER' : 'ENVOYER LA DEMANDE')}
-                            </button>
+                            <div className="space-y-1">
+                                <label className="text-xs text-gray-500 uppercase font-bold">ICE (Identifiant Commun)</label>
+                                <input name="ice" defaultValue={editingClient.ice} placeholder="Ex: 123456789" className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white focus:border-primary outline-none" />
+                            </div>
+
+                            <div className="space-y-1">
+                                <label className="text-xs text-gray-500 uppercase font-bold">Adresse Complète</label>
+                                <textarea name="address" defaultValue={editingClient.address} rows={3} className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white focus:border-primary outline-none" />
+                            </div>
+
+                            <div className="flex justify-end gap-3 pt-4">
+                                <button type="button" onClick={() => setEditingClient(null)} className="px-4 py-2 text-sm font-bold text-gray-400 hover:text-white">Annuler</button>
+                                <button type="submit" className="bg-primary text-black px-6 py-2 rounded-lg text-sm font-bold hover:opacity-90">Enregistrer</button>
+                            </div>
                         </form>
                     </div>
                 </div>
             )}
-        </div>
+        </>
     );
 }
