@@ -2,9 +2,10 @@ import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { redirect } from "next/navigation";
 import Sidebar from '@/components/Sidebar';
-import ClientsList from '@/components/clients/ClientsList';
+import ClientsList from '@/components/clients/ClientsList'; // Ensure this path is correct
 
 export default async function ClientsPage() {
+    // 1. Setup Supabase with Cookies (Crucial for Auth)
     const cookieStore = await cookies();
     const supabase = createServerClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -12,17 +13,20 @@ export default async function ClientsPage() {
         { cookies: { get: (name) => cookieStore.get(name)?.value } }
     );
 
+    // 2. Check if User is Logged In
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) redirect("/");
 
-    const { data: clients } = await supabase
+    // 3. Fetch Clients (Now fully authenticated)
+    const { data: clients, error } = await supabase
         .from('clients')
         .select('*')
-        .eq('owner_id', user.id)
         .order('created_at', { ascending: false });
 
+    if (error) console.error("Error fetching clients:", error);
+
     return (
-        <div className="bg-background-dark text-white font-sans overflow-hidden min-h-screen antialiased selection:bg-primary selection:text-black">
+        <div className="bg-background-dark text-white font-sans overflow-hidden min-h-screen antialiased">
             <div className="flex h-full w-full">
                 <Sidebar />
 
@@ -34,6 +38,7 @@ export default async function ClientsPage() {
 
                     <div className="flex-1 overflow-y-auto pt-28 pb-10 px-8">
                         <div className="max-w-[1200px] mx-auto w-full">
+                            {/* Pass the data to the List Component */}
                             <ClientsList initialClients={clients || []} />
                         </div>
                     </div>
