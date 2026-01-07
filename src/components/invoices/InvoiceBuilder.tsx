@@ -3,9 +3,12 @@
 import { useState, useEffect } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
 import { useRouter } from 'next/navigation';
+import { useModal } from '@/components/ui/ModalProvider'; // Import the Modal Hook
 
 export default function InvoiceBuilder() {
     const router = useRouter();
+    const { showModal } = useModal(); // Initialize the hook
+
     const supabase = createBrowserClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -65,12 +68,21 @@ export default function InvoiceBuilder() {
     };
 
     const handleSave = async () => {
-        if (!selectedClientId) return alert('Veuillez sélectionner un client.');
+        // Validation: Check Client
+        if (!selectedClientId) {
+            showModal({
+                title: "Oups",
+                message: "Veuillez sélectionner un client pour cette facture.",
+                type: "error"
+            });
+            return;
+        }
+
         setLoading(true);
 
         const { data: { user } } = await supabase.auth.getUser();
 
-        // 1. Create Invoice
+        // 1. Create Invoice Header
         const { data: invoice, error: invoiceError } = await supabase
             .from('invoices')
             .insert({
@@ -86,12 +98,16 @@ export default function InvoiceBuilder() {
             .single();
 
         if (invoiceError) {
-            alert('Erreur création facture: ' + invoiceError.message);
+            showModal({
+                title: "Erreur",
+                message: "Erreur lors de la création de la facture : " + invoiceError.message,
+                type: "error"
+            });
             setLoading(false);
             return;
         }
 
-        // 2. Create Invoice Items
+        // 2. Create Invoice Items (Lines)
         const invoiceItems = items.map(item => ({
             invoice_id: invoice.id,
             description: item.description,
@@ -105,10 +121,23 @@ export default function InvoiceBuilder() {
             .insert(invoiceItems);
 
         if (!itemsError) {
-            router.push('/invoices'); // Redirect back to list
-            router.refresh();
+            // SUCCESS: Show Modal then Redirect
+            showModal({
+                title: "Facture Créée !",
+                message: "La facture a été enregistrée avec succès.",
+                type: "success",
+                confirmText: "Voir les factures",
+                onConfirm: () => {
+                    router.push('/invoices');
+                    router.refresh();
+                }
+            });
         } else {
-            alert("Erreur détails facture");
+            showModal({
+                title: "Erreur Détails",
+                message: "La facture a été créée mais une erreur est survenue lors de l'ajout des produits.",
+                type: "error"
+            });
         }
         setLoading(false);
     };
@@ -160,7 +189,7 @@ export default function InvoiceBuilder() {
                     {items.map((item, index) => (
                         <div key={index} className="flex gap-4 items-start">
                             <div className="flex-1 space-y-2">
-                                {/* Product Select (Optional Helper) */}
+                                {/* Product Select Helper */}
                                 <select
                                     onChange={(e) => handleProductSelect(index, e.target.value)}
                                     className="w-full bg-white/5 text-xs text-[#a1a1aa] border border-white/5 rounded-lg p-2 mb-1"

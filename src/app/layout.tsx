@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+import { ModalProvider } from "@/components/ui/ModalProvider"; // Import the Provider
 
 // 1. Load Fonts
 const inter = Inter({
@@ -40,7 +41,10 @@ export default function RootLayout({
         suppressHydrationWarning={true}
         className={`${inter.variable} ${mono.variable} antialiased bg-background-dark text-white font-sans`}
       >
-        {children}
+        {/* Wrap the entire app in the ModalProvider */}
+        <ModalProvider>
+          {children}
+        </ModalProvider>
       </body>
     </html>
   );

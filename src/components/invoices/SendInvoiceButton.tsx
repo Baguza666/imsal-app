@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { sendEmail } from '@/app/actions/sendEmail';
+import { useModal } from '@/components/ui/ModalProvider'; // Import Hook
 
 export default function SendInvoiceButton({
     clientEmail,
@@ -15,31 +16,41 @@ export default function SendInvoiceButton({
     amount: number
 }) {
     const [loading, setLoading] = useState(false);
+    const { showModal } = useModal(); // Use the hook
 
-    const handleSend = async () => {
+    const handleSend = () => {
         if (!clientEmail) {
-            alert("Ce client n'a pas d'adresse email enregistrée.");
+            showModal({
+                title: "Email manquant",
+                message: "Ce client n'a pas d'adresse email enregistrée.",
+                type: "error"
+            });
             return;
         }
 
-        if (!confirm(`Envoyer la facture #${invoiceNumber} à ${clientEmail} ?`)) return;
+        // Replace native confirm() with showModal()
+        showModal({
+            title: "Confirmer l'envoi",
+            message: `Envoyer la facture #${invoiceNumber} (${amount} Dh) à ${clientEmail} ?`,
+            type: "confirm",
+            confirmText: "Envoyer l'email",
+            onConfirm: async () => {
+                setLoading(true);
+                const result = await sendEmail({
+                    to: clientEmail,
+                    subject: `Facture #${invoiceNumber} - IMSAL Services`,
+                    html: `...your html code...`
+                });
+                setLoading(false);
 
-        setLoading(true);
-        const result = await sendEmail({
-            to: clientEmail,
-            subject: `Facture #${invoiceNumber} - IMSAL Services`,
-            html: `
-        <div style="font-family: Arial, sans-serif; color: #333;">
-          <h2>Bonjour ${clientName},</h2>
-          <p>Veuillez trouver ci-joint votre facture <strong>#${invoiceNumber}</strong> d'un montant de <strong>${amount} Dh</strong>.</p>
-          <br>
-          <p>Cordialement,<br><strong>L'équipe IMSAL Services</strong></p>
-        </div>
-      `
+                // Show success/error result
+                showModal({
+                    title: result.success ? "Email Envoyé" : "Erreur",
+                    message: result.message,
+                    type: result.success ? "success" : "error"
+                });
+            }
         });
-        setLoading(false);
-
-        alert(result.message);
     };
 
     return (
